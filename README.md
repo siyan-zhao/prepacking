@@ -1,4 +1,4 @@
-# packing_llm
+# prepacking
 
 # create env
 ```conda env create -f environment.yml```
