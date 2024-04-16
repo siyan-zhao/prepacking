@@ -1,6 +1,9 @@
 # Prepacking: A Simple Method for Fast Prefilling and Increased Throughput in Large Language Models
  
-![img|center](prepacking_gif_final.gif)
+<p align="center">
+  <img src="prepacking_gif_final.gif" width="60%" alt="Prepacking Demo">
+</p>
+
 
 This repository contains the source code of the following paper:
 
@@ -44,9 +47,9 @@ Example output when profiled on a single 48GB NVIDIA A6000 GPU:
 
 ```CUDA_VISIBLE_DEVICES=0 python profiling_dataset_level_prepacking.py  --metric=prefill --model_name=llama1b --batch_size=32 --loadbit=8 --dataset=mmlu```
 
-### sanity check generation tokens.
+## Play with prepacking generation
 
-```CUDA_VISIBLE_DEVICES=0 python generation_example_sanitycheck.py```
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/siyan-zhao/prepacking/blob/main/prepack_generation_demo.ipynb) to try prepacking generation and sanity check against default generation.
 
 ## Reference
 If you find our work useful, please consider citing our [paper](https://arxiv.org/abs/2404.09529):
