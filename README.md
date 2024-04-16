@@ -49,7 +49,8 @@ Example output when profiled on a single 48GB NVIDIA A6000 GPU:
 
 ## Play with Prepacking Generation
 
-A Colab example for using prepacking for generation. Compare it against default generation yourself. [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/siyan-zhao/prepacking/blob/main/prepack_generation_demo.ipynb) 
+A Colab example for using prepacking for generation. Compare it against default generation yourself. 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/siyan-zhao/prepacking/blob/main/prepack_generation_demo.ipynb) 
 
 ## Reference
 If you find our work useful, please consider citing our [paper](https://arxiv.org/abs/2404.09529):
