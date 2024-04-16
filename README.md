@@ -6,9 +6,18 @@
  
 ![img|center](prepacking_gif_final.gif)
 
-## Installation
-```conda env create -f environment.yml```
+## Setup Environment
+### Clone the repository
+```bash
+git clone https://github.com/siyan-zhao/prepacking.git
+cd prepacking
+```
 
+### Conda Setup
+```
+conda env create -f environment.yml
+conda activate prepack
+```
 
 ## Profile speed and memory
 
