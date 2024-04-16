@@ -44,7 +44,7 @@ Example output when profiled on a single 48GB NVIDIA A6000 GPU:
 
 ```CUDA_VISIBLE_DEVICES=0 python profiling_dataset_level_prepacking.py  --metric=prefill --model_name=llama1b --batch_size=32 --loadbit=8 --dataset=mmlu```
 
-### Play with prepacking generation
+## Play with prepacking generation
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/siyan-zhao/prepacking/blob/main/prepack_generation_demo.ipynb) to try prepacking generation and sanity check against default generation.
 
