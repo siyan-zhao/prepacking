@@ -38,17 +38,10 @@ if __name__ == "__main__":
 
     LENGTHS = [50, 100, 200, 400]
     BATCH_SIZES = [1, 2, 4, 8, 16, 32, 64]
-    data_to_save = {}
+    data = {}
     for length in tqdm(LENGTHS):
-        data_to_save[length] = [run_batching_experiment(model, bs, length) for bs in BATCH_SIZES]
-        print(f"Length: {length}", data_to_save[length])
-
-    with open("experiments/batch_size_data.pickle", "wb") as handle:
-        pickle.dump(data_to_save, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    # Plotting
-    with open("experiments/batch_size_data.pickle", "rb") as handle:
-        data = pickle.load(handle)
+        data[length] = [run_batching_experiment(model, bs, length) for bs in BATCH_SIZES]
+        print(f"Length: {length}", data[length])
 
     for length in LENGTHS:
         d = data[length]
