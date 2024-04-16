@@ -19,19 +19,19 @@ class PrePackProcessor:
         Takes batch of tokens and packs them according to the bin-packing algorithm.
     
         Args:
-            length_dict (dict): 
-            packing_dict (dict):
-            token_dict (dict): 
+            length_dict (dict): maps original batch index to its prompt length
+            packing_dict (dict): a mapping between prompt length and bin index
+            token_dict (dict): maps original batch index to its tokenized prompt
     
         Returns:
-            new_tokens: 
-            new_positions:
-            new_mask:
-            restart_dict :   
+            new_tokens (Tensor): packed sequence of tokens
+            new_positions (Tensor): restart positions for the new_tokens
+            new_mask (Tensor): independent mask for the new_tokens
+            restart_dict (dict): mapping restart index and original batch index
         '''
         new_positions = []
         new_tokens = []
-        restart_dict = {0: -1}  # maps restart index -> token_dict index, -1 is a placeholder
+        restart_dict = {0: -1}  # -1 is a placeholder
         restart_index = 0
 
         for key in packing_dict:
@@ -52,7 +52,7 @@ class PrePackProcessor:
         new_tokens = torch.tensor(new_tokens, device=self.device)
         new_positions = torch.tensor(new_positions, device=self.device)
         new_mask = new_mask.clone().detach()
-
+        
         return new_tokens, new_positions, new_mask, restart_dict
 
     def batch_process(self, sentences):
