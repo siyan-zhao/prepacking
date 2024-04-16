@@ -53,7 +53,7 @@ CUDA_VISIBLE_DEVICES=0 python profiling_dataset_level_prepacking.py  --metric=pr
 
 ## Play with Prepacking Generation
 
-A Colab example for using prepacking for generation. Compare it against default generation yourself. <br /> <br />
+A Colab example of using prepacking for generation. Compare it against default generation yourself. <br /> <br />
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/siyan-zhao/prepacking/blob/main/prepack_generation_demo.ipynb) 
 
 ## Reference
