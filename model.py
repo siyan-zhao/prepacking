@@ -11,7 +11,7 @@ from transformers.utils import logging
 
 logger = logging.get_logger(__name__)
 
-
+# Custom model to allow passing of 2D attention masks 
 class CustomLlamaModel(transformers.LlamaModel):
     def __init__(self, config):
         super().__init__(config)
