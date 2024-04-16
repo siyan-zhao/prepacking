@@ -33,7 +33,9 @@ conda activate prepack
 
 ### Profile Prefill or Time to First Token (TTFT) Time and Compare Peak GPU Memory and Utilization
 
-```CUDA_VISIBLE_DEVICES=0 python profiling_time_and_memory.py --metric=prefill --dataset=mmlu --batch_size=64 --model_name=llama1b --num_runs=5```
+```
+CUDA_VISIBLE_DEVICES=0 python profiling_time_and_memory.py --metric=prefill --dataset=mmlu --batch_size=64 --model_name=llama1b --num_runs=5
+```
 
 Example output when profiled on a single 48GB NVIDIA A6000 GPU:
 
@@ -45,7 +47,9 @@ Example output when profiled on a single 48GB NVIDIA A6000 GPU:
 
 ### Compare Per Prompt Inference Prefill Time Including Dataset Prepacking
 
-```CUDA_VISIBLE_DEVICES=0 python profiling_dataset_level_prepacking.py  --metric=prefill --model_name=llama1b --batch_size=32 --loadbit=8 --dataset=mmlu```
+```
+CUDA_VISIBLE_DEVICES=0 python profiling_dataset_level_prepacking.py  --metric=prefill --model_name=llama1b --batch_size=32 --loadbit=8 --dataset=mmlu
+```
 
 ## Play with Prepacking Generation
 
