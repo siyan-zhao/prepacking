@@ -1,7 +1,7 @@
 # Prepacking: A Simple Method for Fast Prefilling and Increased Throughput in Large Language Models
  
 <p align="center">
-  <img src="prepacking_gif_final.gif" width="60%" alt="Prepacking Demo">
+  <img src="figures/prepacking_gif_final.gif" width="60%" alt="Prepacking Demo">
 </p>
 
 
