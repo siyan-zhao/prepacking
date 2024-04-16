@@ -28,10 +28,10 @@ conda env create -f environment.yml
 conda activate prepack
 ```
 
-## Profile speed and memory
+## Profile Speed and Memory
 
 
-### Profile Prefill or Time to First Token (TTFT) Time, and compare peak GPU Memory and Utilization
+### Profile Prefill or Time to First Token (TTFT) Time and Compare Peak GPU Memory and Utilization
 
 ```CUDA_VISIBLE_DEVICES=0 python profiling_time_and_memory.py --metric=prefill --dataset=mmlu --batch_size=64 --model_name=llama1b --num_runs=5```
 
@@ -47,9 +47,9 @@ Example output when profiled on a single 48GB NVIDIA A6000 GPU:
 
 ```CUDA_VISIBLE_DEVICES=0 python profiling_dataset_level_prepacking.py  --metric=prefill --model_name=llama1b --batch_size=32 --loadbit=8 --dataset=mmlu```
 
-## Play with prepacking generation
+## Play with Prepacking Generation
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/siyan-zhao/prepacking/blob/main/prepack_generation_demo.ipynb) to try prepacking generation and sanity check against default generation.
+A Colab example for using prepacking for generation. Compare it against default generation yourself. [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/siyan-zhao/prepacking/blob/main/prepack_generation_demo.ipynb) 
 
 ## Reference
 If you find our work useful, please consider citing our [paper](https://arxiv.org/abs/2404.09529):
