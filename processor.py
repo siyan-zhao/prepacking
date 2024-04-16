@@ -15,6 +15,20 @@ class PrePackProcessor:
             self.packing_fn = greedy_packing
 
     def process(self, length_dict, packing_dict, token_dict):
+        '''
+        Takes batch of tokens and packs them according to the bin-packing algorithm.
+    
+        Args:
+            length_dict (dict): 
+            packing_dict (dict):
+            token_dict (dict): 
+    
+        Returns:
+            new_tokens: 
+            new_positions:
+            new_mask:
+            restart_dict :   
+        '''
         new_positions = []
         new_tokens = []
         restart_dict = {0: -1}  # maps restart index -> token_dict index, -1 is a placeholder
