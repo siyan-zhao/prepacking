@@ -1,7 +1,9 @@
 # Prepacking: A Simple Method for Fast Prefilling and Increased Throughput in Large Language Models
 
  The source code of our work **"Prepacking: A Simple Method for Fast Prefilling and Increased Throughput in Large Language Models"**
- [paper](https://arxiv.org/abs/2404.09529)
+ 
+ [[paper]](https://arxiv.org/abs/2404.09529)
+ 
 ![img|center](prepacking_gif_final.gif)
 
 ## Installation
