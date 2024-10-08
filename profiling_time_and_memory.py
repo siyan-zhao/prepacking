@@ -159,6 +159,9 @@ def measure_inference_resources(
             torch.cuda.empty_cache()
 
             start_time = time.time()
+            print("TESTING")
+            print("NEW ITERATION!!!")
+            print()
             _ = method_function(batch, model, tokenizer, model_device, optimized_processor)
             elapsed = time.time() - start_time
 
@@ -197,15 +200,15 @@ def measure_inference_resources(
 def main(
     methods: List[str] = [
         "prepacking",
-        "full-batching",
-        "length-ordered",
+        # "full-batching",
+        # "length-ordered",
     ],
-    metric: str = "prefill",
+    metric: str = "TTFT",
     dataset: str = "mmlu",
     model_name: str = "llama1b",
     loadbit: int = 4,
     num_runs: int = 5,
-    batch_size: int = 64,
+    batch_size: int = 4,#64,
     binpack_algo: str = "greedy",
 ):
 
