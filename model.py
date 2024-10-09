@@ -37,6 +37,7 @@ from transformers import (
     TrainingArguments,
     default_data_collator
 )
+from functools import partial
 
 logger = logging.get_logger(__name__)
 
@@ -54,8 +55,60 @@ logger = logging.get_logger(__name__)
 
 #     flex_attention = torch.compile(flex_attention)
 
-def causal(b, h, q_idx, kv_idx):
-    return q_idx >= kv_idx
+# def causal(b, h, q_idx, kv_idx):
+#     return q_idx >= kv_idx
+
+# def causal_document_masking(b, h, q_idx, kv_idx, document_ids):
+#     return (q_idx >= kv_idx) and document_ids[b][q_idx] == document_ids[b][kv_idx] 
+
+# def flexible_mask(b, h, q_idx, kv_idx, mask):
+#     return mask[b][0][q_idx][kv_idx] # assuming all heads have same mask
+
+
+import torch
+
+def mask_to_doc_ids(mask):
+    """
+    Assigns document IDs to a causal block diagonal mask.
+
+    Args:
+    mask: A causal block diagonal mask of shape (batch, n, n).
+
+    Returns:
+    A tensor of document IDs of shape (batch, n).
+    """
+
+    # batch_size, n = mask.shape[:2]
+
+    batch_size = mask.shape[0]
+    n = mask.shape[1]
+
+    print("batch size", batch_size, n)
+
+    # Sum along the last dimension
+    sums = mask.sum(dim=-1)  # Shape (batch, n)
+
+    print("SUMS", sums.shape, sums)
+    print(sums[0])
+    print(sums[1])
+    
+    # Create a tensor to store document IDs
+    doc_ids = torch.zeros((batch_size, n), dtype=torch.long, device=mask.device)
+
+    # Assign document IDs
+    for batch_idx in range(batch_size):
+        prev_idx = 0
+        doc_id = 0
+        restart_indices = torch.where(sums[batch_idx] == 1)[0]  # Indices where a new block starts
+        print("RESTART INDICES", restart_indices.shape, restart_indices)
+        for idx in restart_indices:
+            doc_ids[batch_idx, prev_idx:idx] = doc_id
+            prev_idx = idx
+            doc_id += 1
+
+        doc_ids[batch_idx, prev_idx:] = doc_id  # Assign the last document ID
+
+    return doc_ids
 
 
 
@@ -167,7 +220,7 @@ class LlamaFlexAttention(LlamaAttention):
 
             sdpa_mask = attention_mask
             if attention_mask is not None and cache_position is not None:
-                sdpa_mask = sdpa_mask[:, :, cache_position, : key_states.shape[-2]]
+                sdpa_mask = sdpa_mask[:, :, cache_position, :key_states.shape[-2]]
 
             attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
@@ -178,7 +231,38 @@ class LlamaFlexAttention(LlamaAttention):
         else:
             
             flex_attention = torch.compile(flex_attention)
-            block_mask = create_block_mask(causal, B=None, H=None, Q_LEN=q_len, KV_LEN=kv_len)
+
+            print("ATTENTION")
+            print(attention_mask.shape, attention_mask)
+
+            # Apply the masks to replace the values
+
+            new_mask = attention_mask.clone()
+            new_mask[attention_mask == attention_mask.min()] = 0
+            new_mask[attention_mask == 0] = 1
+            new_mask = new_mask[:, :, :kv_len, :kv_len].bool()
+            # new_mask = new_mask.bool()
+
+
+            # document_ids = mask_to_doc_ids(new_mask.squeeze())
+
+            print("DOCUMENT IDS", document_ids)
+
+
+            document_ids = torch.arange(0, kv_len, device=new_mask.device).unsqueeze(0).expand(bsz, -1)
+            
+            print("NEW ATTENTION")
+            print(new_mask.shape, new_mask) 
+
+            def causal_document_masking(b, h, q_idx, kv_idx):
+                return (q_idx >= kv_idx) and document_ids[b][q_idx] == document_ids[b][kv_idx] 
+            
+            # block_mask = create_block_mask(partial(causal_document_masking, document_ids=document_ids), B=None, H=None, Q_LEN=q_len, KV_LEN=kv_len)
+
+            block_mask = create_block_mask(causal_document_masking, B=None, H=None, Q_LEN=q_len, KV_LEN=kv_len)
+
+            # block_mask = create_block_mask(partial(flexible_mask, mask=new_mask), B=None, H=None, Q_LEN=q_len, KV_LEN=kv_len)
+
 
 
             print("IS THIS WHATS BREAKING?")

@@ -19,6 +19,7 @@ from processor import PrePackProcessor
 from utils import integer_program_packing, load_model_and_tokenizer
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 
 
 def monitor_gpu_utilization(stop_event, utilization_stats, device_id=0, interval=0.1):
@@ -208,7 +209,7 @@ def main(
     model_name: str = "llama1b",
     loadbit: int = 4,
     num_runs: int = 5,
-    batch_size: int = 4,#64,
+    batch_size: int = 64,
     binpack_algo: str = "greedy",
 ):
 
