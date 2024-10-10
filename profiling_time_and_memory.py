@@ -19,7 +19,7 @@ from processor import PrePackProcessor
 from utils import integer_program_packing, load_model_and_tokenizer
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "9"
 
 
 def monitor_gpu_utilization(stop_event, utilization_stats, device_id=0, interval=0.1):
