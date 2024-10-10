@@ -49,115 +49,26 @@ from transformers import (
 )
 from functools import partial
 
+from transformers.modeling_outputs import CausalLMOutputWithPast
+from torch.nn import CrossEntropyLoss
+
 logger = logging.get_logger(__name__)
 
-
-# attn_mask = torch.ones((4,1,2048,2048), dtype=torch.bool, device='cuda').tril()
-
-# def causal(b, h, q_idx, kv_idx):
-#     h_ = h.new_zeros(h.shape)
-#     # print(b)  # uncomment this line to make the code work
-#     return attn_mask[b][h_][q_idx][kv_idx]
-
-# global flex_attention
-
-# def recompile():
-
-#     flex_attention = torch.compile(flex_attention)
-
-# def causal(b, h, q_idx, kv_idx):
-#     return q_idx >= kv_idx
-
-# def causal_document_masking(b, h, q_idx, kv_idx, document_ids):
-#     return (q_idx >= kv_idx) and document_ids[b][q_idx] == document_ids[b][kv_idx] 
-
-# def flexible_mask(b, h, q_idx, kv_idx, mask):
-#     return mask[b][0][q_idx][kv_idx] # assuming all heads have same mask
+# Uncommenting breaks the code
+# flex_attention = torch.compile(flex_attention) 
 
 
-import torch
 
+def round_up_to_multiple(x, multiple):
+    return (x + multiple - 1) // multiple * multiple
 
-# # def generate_doc_mask_mod(mask_mod: _mask_mod_signature, offsets: Tensor) -> _mask_mod_signature:
-# def generate_doc_mask_mod(mask_mod: _mask_mod_signature, offsets: Tensor) -> _mask_mod_signature:
-#     """Generates mask mods that apply to inputs to flex attention in the sequence stacked
-#     format.
-
-#     Args:
-#         mask_mod: The mask mod to apply to the documents
-#         offsets: This tensor should be of shape(num_documents + 1)
-#             this should contain the cumulative counts of document tokens.
-#             e.g. if you have 3 documents of length 2, 4, 3 then
-#             offsets = [0, 2, 6, 9]
-
-#     Note:
-#         What is the sequence stacked format? When assembling batches of inputs, we
-#         take multiple sequences and stack them together to form 1 large sequence. We then
-#         use masking to ensure that the attention scores are only applied to tokens within
-#         the same document.
-#     """
-#     document_id = _offsets_to_doc_ids_tensor(offsets)
-    
-
-#     def doc_mask_mod(b, h, q_idx, kv_idx):
-#         same_doc = document_id[q_idx] == document_id[kv_idx]
-#         q_logical = q_idx - offsets[document_id[q_idx]]
-#         kv_logical = kv_idx - offsets[document_id[kv_idx]]
-#         inner_mask = mask_mod(b, h, q_logical, kv_logical)
-#         return same_doc & inner_mask
-
-#     return doc_mask_mod
-
-def mask_to_doc_ids(mask):
-    """
-    Assigns document IDs to a causal block diagonal mask.
-
-    Args:
-    mask: A causal block diagonal mask of shape (batch, n, n).
-
-    Returns:
-    A tensor of document IDs of shape (batch, n).
-    """
-
-    # batch_size, n = mask.shape[:2]
-
-    batch_size = mask.shape[0]
-    n = mask.shape[1]
-
-    # print("batch size", batch_size, n)
-
-    # Sum along the last dimension
-    sums = mask.sum(dim=-1)  # Shape (batch, n)
-
-    # print("SUMS", sums.shape, sums)
-    # print(sums[0])
-    # print(sums[1])
-    
-    # Create a tensor to store document IDs
-    doc_ids = torch.zeros((batch_size, n), dtype=torch.long, device=mask.device)
-
-    # Assign document IDs
-    for batch_idx in range(batch_size):
-        prev_idx = 0
-        doc_id = 0
-        restart_indices = torch.where(sums[batch_idx] == 1)[0]  # Indices where a new block starts
-        # print("RESTART INDICES", restart_indices.shape, restart_indices)
-        for idx in restart_indices:
-            doc_ids[batch_idx, prev_idx:idx] = doc_id
-            prev_idx = idx
-            doc_id += 1
-
-        doc_ids[batch_idx, prev_idx:] = doc_id  # Assign the last document ID
-
-    return doc_ids
+def flex_causal_mask(b, h, q_idx, kv_idx):
+    return q_idx >= kv_idx
 
 
 
 # Code snippet from https://gist.github.com/why-in-Shanghaitech/8b8205f98568c6741a2e38dfcdb9d362
 class LlamaFlexAttention(LlamaAttention):
-
-    
-
     """
     Llama flex attention module. This module inherits from `LlamaAttention` as the weights of the module stays
     untouched. The only required change would be on the forward pass where it needs to correctly call the public API of
@@ -175,8 +86,7 @@ class LlamaFlexAttention(LlamaAttention):
         position_embeddings: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,  # will become mandatory in v4.45
         flex_mask=None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
-        
-        global flex_attention 
+         
         # if isinstance(past_key_value, StaticCache):
         #     raise ValueError(
         #         "`static` cache implementation is not compatible with `attn_implementation==flash_attention_2` "
@@ -249,18 +159,7 @@ class LlamaFlexAttention(LlamaAttention):
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
 
-        print("APPLYING FLEX ATTENTION")
-        print("Query states shape: ", query_states.shape)
-        print("Key states shape: ", key_states.shape)
-
-        q_len = query_states.shape[-2]
-        kv_len = key_states.shape[-2]
-
-        # print("Q_LEN", q_len)
-
         if flex_mask is None:
-
-            print("USING SPDA")
 
             sdpa_mask = attention_mask
             if attention_mask is not None and cache_position is not None:
@@ -274,43 +173,6 @@ class LlamaFlexAttention(LlamaAttention):
             dropout_p=self.attention_dropout if self.training else 0.0)
         else:
             
-            
-
-            # print("ATTENTION")
-            # print(attention_mask.shape, attention_mask)
-
-            # # Apply the masks to replace the values
-
-            # new_mask = attention_mask.clone()
-            # new_mask[attention_mask == attention_mask.min()] = 0
-            # new_mask[attention_mask == 0] = 1
-            # new_mask = new_mask[:, :, :kv_len, :kv_len].bool()
-            # new_mask = new_mask.bool()
-
-
-            # document_ids = mask_to_doc_ids(new_mask.squeeze())
-
-            # print("DOCUMENT IDS", document_ids)
-
-
-            # # document_ids = torch.arange(0, kv_len, device=new_mask.device).unsqueeze(0).expand(bsz, -1)
-            
-            # # print("NEW ATTENTION")
-            # # print(new_mask.shape, new_mask) 
-
-            # def causal_document_masking(b, h, q_idx, kv_idx):
-            #     return (q_idx >= kv_idx) and document_ids[b][q_idx] == document_ids[b][kv_idx] 
-            
-            # block_mask = create_block_mask(partial(causal_document_masking, document_ids=document_ids), B=None, H=None, Q_LEN=q_len, KV_LEN=kv_len)
-
-            # block_mask = create_block_mask(causal_document_masking, B=None, H=None, Q_LEN=q_len, KV_LEN=kv_len)
-
-            # block_mask = create_block_mask(partial(flexible_mask, mask=new_mask), B=None, H=None, Q_LEN=q_len, KV_LEN=kv_len)
-
-
-
-            print("USING FLEX ATTENTION")
-        
             attn_output = flex_attention(
                 query_states,
                 key_states,
@@ -318,7 +180,6 @@ class LlamaFlexAttention(LlamaAttention):
                 block_mask=flex_mask,
                 enable_gqa=True,
             )
-        # import pdb; pdb.set_trace()
 
         attn_output = attn_output.transpose(1, 2).reshape(bsz, q_len, -1).contiguous()
         attn_output = self.o_proj(attn_output)
@@ -346,6 +207,7 @@ class CustomLlamaModel(transformers.LlamaModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         cache_position: Optional[torch.LongTensor] = None,
+        document_ids: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         # global flex_attention
 
@@ -394,106 +256,25 @@ class CustomLlamaModel(transformers.LlamaModel):
         all_self_attns = () if output_attentions else None
         next_decoder_cache = None
 
-
-        # Create Flex Mask:
-
-        # flex_attention = torch.compile(flex_attention)
-
-        # print("ATTENTION")
-        # print(attention_mask.shape, attention_mask)
-
-        # Apply the masks to replace the values
-
-        # new_mask = attention_mask.clone()
-        # new_mask[attention_mask == attention_mask.min()] = 0
-        # new_mask[attention_mask == 0] = 1
-        # new_mask = new_mask[:, :, :kv_len, :kv_len].bool()
-
-        # print("NEW MASK")
-        # print(new_mask.shape, new_mask)
-
-        document_ids = mask_to_doc_ids(attention_mask)
-
-        print("DOCUMENT IDS", document_ids.shape, document_ids)
+        _, q_len, _ = hidden_states.size()
 
 
-        # document_ids = torch.arange(0, kv_len, device=new_mask.device).unsqueeze(0).expand(bsz, -1)
-            
-            # print("NEW ATTENTION")
-            # print(new_mask.shape, new_mask) 
-
-        # def causal_document_masking(b, h, q_idx, kv_idx):
-        #     return (q_idx >= kv_idx) and document_ids[b][q_idx] == document_ids[b][kv_idx] 
-
-        bsz, q_len, _ = hidden_states.size()
-
-        # print("Q_LEN", q_len)
-        # from attn_gym.masks.document_mask import length_to_offsets
-
-        # # lengths = [100,100,100,100]
-
-        # lengths = [q_len // 5] * 5
-        # lengths[-1] += q_len % 5
-
+        if document_ids is not None:
         
+            desired_length = round_up_to_multiple(q_len, 128)
+            document_ids = F.pad(input=document_ids, pad=(0, desired_length - q_len), mode='constant', value=-1)
 
-        # offsets = length_to_offsets(lengths, device=hidden_states.device)
-
-        # causal_document_masking = generate_doc_mask_mod(ag.masks.causal_mask, offsets)
-        
-        
-        # def make_tensor():
-        #     return torch.ones(1, 1, q_len, 8, device=hidden_states.device)
-
-        # query, key = make_tensor(), make_tensor()
-        # # document_causal_mask = generate_doc_mask_mod(causal_mask, offsets)
-
-        # ag.utils.visualize_attention_scores(
-        #     query,
-        #     key,
-        #     mask_mod=causal_document_masking,
-        #     device=hidden_states.device,
-        #     name="document_causal_mask",
-        # )
-
-        document_id = mask_to_doc_ids(attention_mask.squeeze())
-
-        print("DOCUMENT IDS", document_id.shape)
-        print(document_id)
-
-
-        print("DOCUMENT ID LENGTH", len(document_id))
-        print("Q_LEN", q_len)
-
-        def round_up_to_multiple(x, multiple):
-            return (x + multiple - 1) // multiple * multiple
-        
-        desired_length = round_up_to_multiple(q_len, 128)
-
-        print("DESIRED", desired_length)
-
-        document_id = F.pad(input=document_id, pad=(0, desired_length - q_len), mode='constant', value=-1)
-
-        print("DOCUMENT ID LENGTH", document_id.shape)
-        print("NEW", document_id)
-
-        def document_causal_mask(b, h, q_idx, kv_idx):
-
-            # print("Q_IDX", q_idx)
-            # print("KV_IDX", kv_idx)
-            # print("DOCUMENT ID", document_id)
+        def flex_document_causal_mask(b, h, q_idx, kv_idx):
             causal_mask = q_idx >= kv_idx
-            document_mask = document_id[b][q_idx] == document_id[b][kv_idx]
+            document_mask = document_ids[b][q_idx] == document_ids[b][kv_idx]
             return causal_mask & document_mask
 
 
-        if q_len == 1: # not prefilling
-            flex_mask = None
+        if q_len == 1 or document_ids is None: # not prefilling
+            flex_mask = create_block_mask(flex_causal_mask, B=None, H=None, Q_LEN=q_len, KV_LEN=q_len)
         else:
-
-            global flex_attention
-            flex_attention = torch.compile(flex_attention)
-            flex_mask = create_block_mask(document_causal_mask, B=None, H=None, Q_LEN=q_len, KV_LEN=q_len)
+            
+            flex_mask = create_block_mask(flex_document_causal_mask, B=None, H=None, Q_LEN=q_len, KV_LEN=q_len)
 
         for decoder_layer in self.layers:
             if output_hidden_states:
@@ -613,11 +394,106 @@ class CustomCausalLlamaModel(transformers.LlamaForCausalLM, GenerationMixin):
     
     def __init__(self, config):
 
-        print(config)
-
         super().__init__(config)
 
         self.model = CustomLlamaModel(config)
+
+    def forward(
+        self,
+        input_ids: torch.LongTensor = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_values: Optional[List[torch.FloatTensor]] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        cache_position: Optional[torch.LongTensor] = None,
+        document_ids: Optional[torch.LongTensor] = None,
+    ) -> Union[Tuple, CausalLMOutputWithPast]:
+        r"""
+        Args:
+            labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
+                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
+                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
+
+        Returns:
+
+        Example:
+
+        ```python
+        >>> from transformers import AutoTokenizer, LlamaForCausalLM
+
+        >>> model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf")
+        >>> tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
+
+        >>> prompt = "Hey, are you conscious? Can you talk to me?"
+        >>> inputs = tokenizer(prompt, return_tensors="pt")
+
+        >>> # Generate
+        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
+        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
+        ```"""
+        global flex_attention 
+        flex_attention = torch.compile(flex_attention)
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_hidden_states = (
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+        outputs = self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+            cache_position=cache_position,
+            document_ids=document_ids,
+        )
+
+        hidden_states = outputs[0]
+        if self.config.pretraining_tp > 1:
+            lm_head_slices = self.lm_head.weight.split(self.vocab_size // self.config.pretraining_tp, dim=0)
+            logits = [F.linear(hidden_states, lm_head_slices[i]) for i in range(self.config.pretraining_tp)]
+            logits = torch.cat(logits, dim=-1)
+        else:
+            logits = self.lm_head(hidden_states)
+        logits = logits.float()
+
+        loss = None
+        if labels is not None:
+            # Shift so that tokens < n predict n
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+            # Flatten the tokens
+            loss_fct = CrossEntropyLoss()
+            shift_logits = shift_logits.view(-1, self.config.vocab_size)
+            shift_labels = shift_labels.view(-1)
+            # Enable model parallelism
+            shift_labels = shift_labels.to(shift_logits.device)
+            loss = loss_fct(shift_logits, shift_labels)
+
+        if not return_dict:
+            output = (logits,) + outputs[1:]
+            return (loss,) + output if loss is not None else output
+
+        return CausalLMOutputWithPast(
+            loss=loss,
+            logits=logits,
+            past_key_values=outputs.past_key_values,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        ) 
 
 
 

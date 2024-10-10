@@ -99,12 +99,16 @@ def load_model_and_tokenizer(
     load_in_8bit = loadbit == 8
     load_in_4bit = loadbit == 4
     if "llama" in base_model:
-        if attn_implementation == "flex":
-            # LLAMA_ATTENTION_CLASSES["flash_attention_2"] = LlamaFlexAttention
-            LLAMA_ATTENTION_CLASSES["sdpa"] = LlamaFlexAttention
-        else:
-            # LLAMA_ATTENTION_CLASSES["flash_attention_2"] = LlamaFlashAttention2
-            LLAMA_ATTENTION_CLASSES["flash_attention_2"] = LlamaSdpaAttention
+        # if attn_implementation == "flex":
+        #     # LLAMA_ATTENTION_CLASSES["flash_attention_2"] = LlamaFlexAttention
+        #     LLAMA_ATTENTION_CLASSES["sdpa"] = LlamaFlexAttention
+        # else:
+        #     # LLAMA_ATTENTION_CLASSES["flash_attention_2"] = LlamaFlashAttention2
+        #     LLAMA_ATTENTION_CLASSES["flash_attention_2"] = LlamaSdpaAttention
+
+
+        # Always use flex attention:
+        LLAMA_ATTENTION_CLASSES["sdpa"] = LlamaFlexAttention
         
         attn_implementation = "sdpa"
 

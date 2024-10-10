@@ -19,7 +19,7 @@ from processor import PrePackProcessor
 from utils import integer_program_packing, load_model_and_tokenizer
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-os.environ["CUDA_VISIBLE_DEVICES"] = "9"
+os.environ["CUDA_VISIBLE_DEVICES"] = "8"
 
 
 def monitor_gpu_utilization(stop_event, utilization_stats, device_id=0, interval=0.1):
@@ -38,11 +38,12 @@ def monitor_gpu_utilization(stop_event, utilization_stats, device_id=0, interval
 
 
 def prefill_with_prepacking(sentences, model, tokenizer, device, processor):
-    new_tokens, new_positions, new_mask, restart_dict, original_ids = processor.batch_process(sentences)
+    new_tokens, new_positions, document_ids, restart_dict, original_ids = processor.batch_process(sentences)
     with torch.no_grad():
         output = model(
             input_ids=new_tokens,
-            attention_mask=new_mask,
+            # attention_mask=new_mask,
+            document_ids=document_ids,
             position_ids=new_positions,
             return_dict=True,
         )
@@ -50,11 +51,12 @@ def prefill_with_prepacking(sentences, model, tokenizer, device, processor):
 
 
 def TTFT_with_prepacking(sentences, model, tokenizer, device, processor):
-    new_tokens, new_positions, new_mask, restart_dict, original_ids = processor.batch_process(sentences)
+    new_tokens, new_positions, document_ids, restart_dict, original_ids = processor.batch_process(sentences)
     with torch.no_grad():
         packed_outputs = model(
             input_ids=new_tokens,
-            attention_mask=new_mask,
+            # attention_mask=new_mask,
+            document_ids=document_ids,
             position_ids=new_positions,
             return_dict=True,
         )
@@ -160,9 +162,6 @@ def measure_inference_resources(
             torch.cuda.empty_cache()
 
             start_time = time.time()
-            print("TESTING")
-            print("NEW ITERATION!!!")
-            print()
             _ = method_function(batch, model, tokenizer, model_device, optimized_processor)
             elapsed = time.time() - start_time
 
@@ -201,14 +200,14 @@ def measure_inference_resources(
 def main(
     methods: List[str] = [
         "prepacking",
-        # "full-batching",
+        "full-batching",
         # "length-ordered",
     ],
     metric: str = "TTFT",
     dataset: str = "mmlu",
     model_name: str = "llama1b",
     loadbit: int = 4,
-    num_runs: int = 5,
+    num_runs: int = 1,
     batch_size: int = 64,
     binpack_algo: str = "greedy",
 ):
