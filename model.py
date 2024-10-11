@@ -160,7 +160,6 @@ class LlamaFlexAttention(LlamaAttention):
             value_states = value_states.to(target_dtype)
 
         if flex_mask is None:
-
             sdpa_mask = attention_mask
             if attention_mask is not None and cache_position is not None:
                 sdpa_mask = sdpa_mask[:, :, cache_position, :key_states.shape[-2]]
@@ -171,8 +170,7 @@ class LlamaFlexAttention(LlamaAttention):
             value_states,
             attn_mask=sdpa_mask,
             dropout_p=self.attention_dropout if self.training else 0.0)
-        else:
-            
+        else:  
             attn_output = flex_attention(
                 query_states,
                 key_states,
@@ -271,7 +269,8 @@ class CustomLlamaModel(transformers.LlamaModel):
 
 
         if q_len == 1 or document_ids is None: # not prefilling
-            flex_mask = create_block_mask(flex_causal_mask, B=None, H=None, Q_LEN=q_len, KV_LEN=q_len)
+            # flex_mask = create_block_mask(flex_causal_mask, B=None, H=None, Q_LEN=q_len, KV_LEN=q_len)
+            flex_mask = None
         else:
             
             flex_mask = create_block_mask(flex_document_causal_mask, B=None, H=None, Q_LEN=q_len, KV_LEN=q_len)
